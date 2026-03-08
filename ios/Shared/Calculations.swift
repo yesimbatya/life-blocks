@@ -5,7 +5,7 @@ typealias BlockAssignments = [String?]
 
 func calculateMultiplier(streak: Int) -> Double {
     guard streak >= 1 else { return 1.0 }
-    return pow(1.0 + Double(streak) * 0.01, Double(streak) / 7.0)
+    return min(pow(1.0 + Double(streak) * 0.01, Double(streak) / 7.0), 10.0)
 }
 
 func calculateHabitReturn(habit: Habit, blocks: Int, multiplier: Double) -> Double {

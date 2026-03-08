@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react'
-import { DEFAULT_HABITS, Allocations, Habit, BlockAssignments, createEmptyBlocks, CATEGORIES } from '@/lib/habits'
+import { DEFAULT_HABITS, Allocations, Habit, BlockAssignments, createEmptyBlocks, CATEGORIES, TOTAL_BLOCKS } from '@/lib/habits'
 import { blocksToTime, blocksToAllocations, countUsedBlocks, calculateTotalReturn, calculateMultiplier } from '@/lib/calculations'
 
 interface TimeGridProps {
@@ -16,7 +16,6 @@ interface TimeGridProps {
 }
 
 const START_HOUR = 6
-const TOTAL_BLOCKS_COUNT = 100
 
 interface TimeSlot {
   index: number
@@ -26,7 +25,7 @@ interface TimeSlot {
 
 function generateTimeSlotMeta(): TimeSlot[] {
   const slots: TimeSlot[] = []
-  for (let i = 0; i < TOTAL_BLOCKS_COUNT; i++) {
+  for (let i = 0; i < TOTAL_BLOCKS; i++) {
     const totalMinutes = i * 10
     slots.push({
       index: i,
@@ -69,7 +68,7 @@ function getCurrentTimeIndex(): number | null {
   if (currentHour < START_HOUR) return null
   const totalMinutes = (currentHour - START_HOUR) * 60 + currentMinute
   const index = Math.floor(totalMinutes / 10)
-  if (index >= TOTAL_BLOCKS_COUNT) return null
+  if (index >= TOTAL_BLOCKS) return null
   return index
 }
 
@@ -290,6 +289,18 @@ export const TimeGrid = memo(function TimeGrid({
     }
   }, [isSelecting, applySelection, handleTouchMove])
 
+  // Escape key to cancel
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCancel()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return
     const prev = undoStack[undoStack.length - 1]
@@ -326,7 +337,7 @@ export const TimeGrid = memo(function TimeGrid({
       onClick={handleCancel}
     >
       <div
-        className="bg-ios-card w-full sm:max-w-lg sm:rounded-2xl sm:mx-4 rounded-t-[24px] max-h-[94vh] flex flex-col animate-slide-up overflow-hidden shadow-2xl"
+        className="bg-ios-card w-full sm:max-w-lg sm:rounded-2xl sm:mx-4 rounded-t-ios-sheet max-h-[94vh] flex flex-col animate-slide-up overflow-hidden shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Drag handle */}
@@ -402,18 +413,15 @@ export const TimeGrid = memo(function TimeGrid({
         {/* Time Grid */}
         <div ref={gridRef} className="flex-1 overflow-y-auto bg-ios-bg select-none">
           {HOUR_GROUPS.map((group) => (
-            <div key={group.hour} className="flex bg-ios-card border-b border-ios-separator">
+            <div key={group.hour} className="flex bg-ios-card border-b border-ios-separator/50">
               {/* Hour Label */}
-              <div className="w-14 flex-shrink-0 relative">
-                <div className="absolute -top-2 right-2 flex flex-col items-end">
-                  <span className="text-[15px] font-semibold text-ios-text tabular-nums leading-none">
-                    {group.label}
-                  </span>
-                  <span className="text-[9px] text-ios-text-secondary font-medium">
-                    {group.ampm}
-                  </span>
-                </div>
-                <div className="absolute top-0 right-0 w-px h-full bg-ios-separator" />
+              <div className="w-12 flex-shrink-0 flex flex-col items-center justify-center border-r border-ios-separator/50">
+                <span className="text-[16px] font-semibold text-ios-text tabular-nums leading-none">
+                  {group.label}
+                </span>
+                <span className="text-[9px] text-ios-text-secondary font-medium mt-0.5">
+                  {group.ampm}
+                </span>
               </div>
 
               {/* 10-minute blocks */}
@@ -431,10 +439,10 @@ export const TimeGrid = memo(function TimeGrid({
                       key={slot.index}
                       data-index={slot.index}
                       className={`
-                        h-16 flex items-center justify-center cursor-pointer
+                        h-14 flex items-center justify-center cursor-pointer
                         transition-all duration-100 relative
-                        ${slotIdx < 5 ? 'border-r border-ios-separator/30' : ''}
-                        ${isHalfHour ? 'border-l-2 border-l-ios-separator/30' : ''}
+                        ${slotIdx < 5 ? 'border-r border-ios-separator/20' : ''}
+                        ${isHalfHour ? 'border-l border-l-ios-separator/40' : ''}
                         ${isInSelection ? 'z-10' : ''}
                         ${!habit && !isInSelection ? 'hover:bg-ios-blue/5 active:bg-ios-blue/10' : ''}
                       `}
@@ -461,19 +469,17 @@ export const TimeGrid = memo(function TimeGrid({
 
                       {/* Habit emoji */}
                       {habit && (
-                        <span className="text-xl drop-shadow-sm">{habit.emoji}</span>
+                        <span className="text-lg drop-shadow-sm">{habit.emoji}</span>
                       )}
 
                       {/* Preview emoji */}
                       {showPreview && (
-                        <span className="text-xl opacity-50">{selectedHabit.emoji}</span>
+                        <span className="text-lg opacity-50">{selectedHabit.emoji}</span>
                       )}
 
-                      {/* Time label on edges */}
-                      {(slot.minute === 0 || slot.minute === 30) && !habit && !showPreview && (
-                        <span className="absolute bottom-1 left-1 text-[9px] text-ios-text-secondary font-medium">
-                          :{slot.minute.toString().padStart(2, '0')}
-                        </span>
+                      {/* Half-hour dot marker */}
+                      {slot.minute === 30 && !habit && !showPreview && (
+                        <div className="w-1 h-1 rounded-full bg-ios-separator" />
                       )}
                     </div>
                   )

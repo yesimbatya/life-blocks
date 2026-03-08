@@ -8,6 +8,7 @@ struct BlockGridEntry: TimelineEntry {
     let blocks: [String?]
     let streak: Int
     let usedBlocks: Int
+    let allHabits: [Habit]
 }
 
 struct BlockGridProvider: TimelineProvider {
@@ -16,7 +17,8 @@ struct BlockGridProvider: TimelineProvider {
             date: Date(),
             blocks: Array(repeating: nil, count: kTotalBlocks),
             streak: 1,
-            usedBlocks: 0
+            usedBlocks: 0,
+            allHabits: kDefaultHabits
         )
     }
 
@@ -32,11 +34,14 @@ struct BlockGridProvider: TimelineProvider {
 
     private func loadEntry() -> BlockGridEntry {
         let data = BlockStore.loadData()
+        let settings = SettingsStore.loadSettings()
+        let allHabits = mergeHabits(custom: settings.customHabits)
         return BlockGridEntry(
             date: Date(),
             blocks: data.blocks,
             streak: data.streak,
-            usedBlocks: countUsedBlocks(data.blocks)
+            usedBlocks: countUsedBlocks(data.blocks),
+            allHabits: allHabits
         )
     }
 }
@@ -61,7 +66,7 @@ struct SmallWidgetView: View {
 
             LazyVGrid(columns: columns, spacing: 1.5) {
                 ForEach(0..<kTotalBlocks, id: \.self) { i in
-                    let habit = entry.blocks[i].flatMap { habitById($0) }
+                    let habit = entry.blocks[i].flatMap { habitById($0, from: entry.allHabits) }
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(habit?.color ?? Color(.systemGray5))
                         .aspectRatio(1, contentMode: .fit)
@@ -89,7 +94,7 @@ struct MediumWidgetView: View {
 
     private var topHabits: [(Habit, Int)] {
         allocations
-            .compactMap { (id, count) in habitById(id).map { ($0, count) } }
+            .compactMap { (id, count) in habitById(id, from: entry.allHabits).map { ($0, count) } }
             .sorted { $0.1 > $1.1 }
             .prefix(4)
             .map { $0 }
@@ -109,7 +114,7 @@ struct MediumWidgetView: View {
 
                 LazyVGrid(columns: columns, spacing: 1.5) {
                     ForEach(0..<kTotalBlocks, id: \.self) { i in
-                        let habit = entry.blocks[i].flatMap { habitById($0) }
+                        let habit = entry.blocks[i].flatMap { habitById($0, from: entry.allHabits) }
                         RoundedRectangle(cornerRadius: 1.5)
                             .fill(habit?.color ?? Color(.systemGray5))
                             .aspectRatio(1, contentMode: .fit)

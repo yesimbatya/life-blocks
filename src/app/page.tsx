@@ -11,7 +11,7 @@ import { Onboarding } from '@/components/Onboarding'
 
 export default function Home() {
   const {
-    blocks, allocations, streak, history, isLoaded,
+    blocks, allocations, streak, previousStreak, history, isLoaded,
     updateBlocks, settings, updateSettings, allHabits,
     addCustomHabit, removeCustomHabit, editCustomHabit,
   } = useLocalStorage()
@@ -53,6 +53,7 @@ export default function Home() {
               blocks={blocks}
               allocations={allocations}
               streak={streak}
+              previousStreak={previousStreak}
               allHabits={allHabits}
               updateBlocks={updateBlocks}
             />

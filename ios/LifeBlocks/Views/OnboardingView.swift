@@ -44,7 +44,7 @@ struct OnboardingView: View {
 
                         Text(pages[index].subtitle)
                             .font(.callout.weight(.semibold))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.accentColor)
                             .multilineTextAlignment(.center)
 
                         Text(pages[index].description)
@@ -67,7 +67,7 @@ struct OnboardingView: View {
                 HStack(spacing: 8) {
                     ForEach(0..<pages.count, id: \.self) { index in
                         Capsule()
-                            .fill(index == currentPage ? Color.blue : Color(.systemGray4))
+                            .fill(index == currentPage ? Color.accentColor : Color(.systemGray4))
                             .frame(width: index == currentPage ? 24 : 8, height: 8)
                             .animation(.spring(response: 0.3), value: currentPage)
                     }
@@ -87,7 +87,7 @@ struct OnboardingView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
+                        .background(Color.accentColor)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }

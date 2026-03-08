@@ -66,7 +66,7 @@ class SettingsStore: ObservableObject {
         UserDefaults(suiteName: appGroupID) ?? .standard
     }
 
-    private static func loadSettings() -> UserSettings {
+    static func loadSettings() -> UserSettings {
         guard let data = defaults.data(forKey: settingsKey),
               let settings = try? JSONDecoder().decode(UserSettings.self, from: data) else {
             return UserSettings()

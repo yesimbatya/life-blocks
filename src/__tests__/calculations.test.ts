@@ -37,6 +37,11 @@ describe('calculateMultiplier', () => {
     expect(day14).toBeGreaterThan(day7)
     expect(day30).toBeGreaterThan(day14)
   })
+
+  it('caps at 10x for very large streaks', () => {
+    expect(calculateMultiplier(100)).toBeLessThanOrEqual(10)
+    expect(calculateMultiplier(1000)).toBeLessThanOrEqual(10)
+  })
 })
 
 describe('calculateHabitReturn', () => {

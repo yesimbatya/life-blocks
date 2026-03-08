@@ -134,6 +134,7 @@ export function useLocalStorage() {
   const [data, setData] = useState<StoredData>(getDefaultData)
   const [settings, setSettings] = useState<UserSettings>({ ...DEFAULT_SETTINGS })
   const [isLoaded, setIsLoaded] = useState(false)
+  const [previousStreak, setPreviousStreak] = useState<number | null>(null)
 
   // Merge default habits with custom habits
   const allHabits = useMemo(
@@ -162,6 +163,8 @@ export function useLocalStorage() {
         const habits = mergeHabits(loadedSettings.customHabits)
 
         if (parsed.currentDate !== today) {
+          // Track the old streak before day rollover
+          setPreviousStreak(parsed.streak)
           setData(processNewDay(parsed, today, habits))
         } else {
           setData(parsed)
@@ -245,6 +248,7 @@ export function useLocalStorage() {
     blocks: data.blocks,
     allocations,
     streak: data.streak,
+    previousStreak,
     history: data.history,
     isLoaded,
     updateBlocks,

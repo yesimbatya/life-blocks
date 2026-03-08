@@ -54,6 +54,7 @@ struct SettingsView: View {
                         for offset in offsets {
                             let habit = allHabits[offset]
                             if habit.isCustom {
+                                store.cleanupHabitBlocks(habitId: habit.id)
                                 settingsStore.removeCustomHabit(id: habit.id)
                             }
                         }
@@ -159,6 +160,14 @@ struct SettingsView: View {
     }
 
     private func handleImport(_ result: Result<URL, Error>) {
+        struct ImportData: Codable {
+            let version: Int?
+            let settings: UserSettings?
+            let blocks: [String?]?
+            let streak: Int?
+            let history: [DayData]?
+        }
+
         switch result {
         case .success(let url):
             guard url.startAccessingSecurityScopedResource() else {
@@ -169,8 +178,21 @@ struct SettingsView: View {
 
             do {
                 let data = try Data(contentsOf: url)
-                let settings = try JSONDecoder().decode(UserSettings.self, from: data)
-                settingsStore.settings = settings
+                let imported = try JSONDecoder().decode(ImportData.self, from: data)
+
+                if let settings = imported.settings {
+                    settingsStore.settings = settings
+                }
+                if let blocks = imported.blocks {
+                    store.blocks = blocks
+                }
+                if let streak = imported.streak {
+                    store.streak = streak
+                }
+                if let history = imported.history {
+                    store.history = history
+                }
+
                 importMessage = "Import successful!"
             } catch {
                 importMessage = "Invalid file format"

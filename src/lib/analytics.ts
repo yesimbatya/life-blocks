@@ -1,4 +1,4 @@
-import { DayData, Habit, BlockAssignments, Allocations } from './habits'
+import { DayData, Habit } from './habits'
 import { blocksToAllocations } from './calculations'
 
 /** Calculate average return over the last N days */
@@ -58,25 +58,6 @@ export function categoryDistribution(
     growth: (categoryBlocks.growth / totalBlocks) * 100,
     drain: (categoryBlocks.drain / totalBlocks) * 100,
   }
-}
-
-/** Get blocks allocated to a habit over time */
-export function habitTrendData(
-  history: DayData[],
-  habitId: string
-): { date: string; blocks: number }[] {
-  return history.map(d => ({
-    date: d.date,
-    blocks: blocksToAllocations(d.blocks)[habitId] || 0,
-  }))
-}
-
-/** Get total blocks allocated per day */
-export function dailyBlocksData(history: DayData[]): { date: string; blocks: number }[] {
-  return history.map(d => ({
-    date: d.date,
-    blocks: d.blocks.filter(b => b !== null).length,
-  }))
 }
 
 /** Get daily returns */

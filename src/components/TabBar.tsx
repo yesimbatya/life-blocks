@@ -53,7 +53,10 @@ export const TabBar = memo(function TabBar({ activeTab, onTabChange }: TabBarPro
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40">
       <div className="bg-ios-card/90 backdrop-blur-xl border-t border-ios-separator">
-        <div className="flex justify-around items-center pt-2 pb-2 max-w-lg mx-auto"
+        <nav
+          role="tablist"
+          aria-label="Main navigation"
+          className="flex justify-around items-center pt-2 pb-2 max-w-lg mx-auto"
           style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
         >
           {TABS.map(tab => {
@@ -61,6 +64,9 @@ export const TabBar = memo(function TabBar({ activeTab, onTabChange }: TabBarPro
             return (
               <button
                 key={tab.id}
+                role="tab"
+                aria-selected={isActive}
+                aria-label={tab.label}
                 onClick={() => onTabChange(tab.id)}
                 className={`
                   flex flex-col items-center gap-1 px-6 py-1 ios-press
@@ -75,7 +81,7 @@ export const TabBar = memo(function TabBar({ activeTab, onTabChange }: TabBarPro
               </button>
             )
           })}
-        </div>
+        </nav>
       </div>
     </div>
   )

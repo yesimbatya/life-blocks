@@ -42,7 +42,7 @@ export function HabitEditor({ isOpen, onClose, onSave, editHabit }: HabitEditorP
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-ios-card w-full sm:max-w-md sm:rounded-2xl sm:mx-4 rounded-t-[24px] max-h-[85vh] flex flex-col animate-slide-up overflow-hidden shadow-2xl"
+        className="bg-ios-card w-full sm:max-w-md sm:rounded-2xl sm:mx-4 rounded-t-ios-sheet max-h-[85vh] flex flex-col animate-slide-up overflow-hidden shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Handle */}
@@ -98,7 +98,7 @@ export function HabitEditor({ isOpen, onClose, onSave, editHabit }: HabitEditorP
               onChange={e => setBaseReturn(parseFloat(e.target.value))}
               className="w-full"
               style={{
-                background: `linear-gradient(to right, #FF3B30 0%, #E5E5EA 33%, #34C759 100%)`,
+                background: `linear-gradient(to right, var(--ios-red, #FF3B30) 0%, var(--ios-separator, #E5E5EA) 33%, var(--ios-green, #34C759) 100%)`,
               }}
             />
             <div className="flex justify-between text-[11px] text-ios-text-secondary mt-1">

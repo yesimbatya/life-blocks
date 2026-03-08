@@ -15,12 +15,8 @@ const config: Config = {
         'ios-green': '#34C759',
         'ios-red': '#FF3B30',
         'ios-orange': '#FF9500',
-        'ios-yellow': '#FFCC00',
-        'ios-purple': '#AF52DE',
-        'ios-pink': '#FF2D55',
         'ios-gray': {
           1: '#8E8E93',
-          2: '#AEAEB2',
           3: '#C7C7CC',
           4: '#D1D1D6',
           5: '#E5E5EA',
@@ -48,6 +44,7 @@ const config: Config = {
         'ios': '12px',
         'ios-lg': '16px',
         'ios-xl': '20px',
+        'ios-sheet': '24px',
       },
       boxShadow: {
         'ios': '0 2px 12px var(--ios-shadow)',

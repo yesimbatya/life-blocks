@@ -176,7 +176,7 @@ struct BlockGridView: View {
 struct BlockCell: View {
     let habitId: String?
     let selectedHabit: Habit?
-    var allHabits: [Habit] = kDefaultHabits
+    let allHabits: [Habit]
 
     var body: some View {
         let habit = habitId.flatMap { habitById($0, from: allHabits) }
@@ -194,7 +194,7 @@ struct BlockCell: View {
 }
 
 struct MiniLegend: View {
-    var habits: [Habit] = kDefaultHabits
+    let habits: [Habit]
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {

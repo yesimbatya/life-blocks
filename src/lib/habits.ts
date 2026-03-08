@@ -45,9 +45,6 @@ export const DEFAULT_HABITS: readonly Habit[] = [
   { id: 'netflix', emoji: '📺', name: 'Binge', baseReturn: -1.5, color: '#636366', category: 'drain' },
 ] as const
 
-/** @deprecated Use DEFAULT_HABITS instead. Kept for backward compatibility. */
-export const HABITS = DEFAULT_HABITS
-
 /** Total blocks available per day (100 x 10-min blocks = 1000 waking minutes) */
 export const TOTAL_BLOCKS = 100 as const
 
@@ -70,16 +67,6 @@ export interface DayData {
   readonly blocks: BlockAssignments
   readonly streak: number
   readonly totalReturn: number
-}
-
-/** Helper to get habit by ID */
-export function getHabitById(id: string, allHabits: readonly Habit[] = DEFAULT_HABITS): Habit | undefined {
-  return allHabits.find(h => h.id === id)
-}
-
-/** Get all habits in a category */
-export function getHabitsByCategory(category: HabitCategory, allHabits: readonly Habit[] = DEFAULT_HABITS): readonly Habit[] {
-  return allHabits.filter(h => h.category === category)
 }
 
 /** Merge default habits with custom habits */

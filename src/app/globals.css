@@ -12,11 +12,16 @@
   --ios-bg: #F2F2F7;
   --ios-card: #FFFFFF;
   --ios-text: #1C1C1E;
-  --ios-text-secondary: #8E8E93;
+  --ios-text-secondary: #6C6C70;
   --ios-separator: #E5E5EA;
   --ios-grouped-bg: #F2F2F7;
   --ios-shadow: rgba(0, 0, 0, 0.04);
   --ios-shadow-lg: rgba(0, 0, 0, 0.08);
+
+  --heatmap-high: #22C55E;
+  --heatmap-mid: #4ADE80;
+  --heatmap-low: #86EFAC;
+  --heatmap-negative: #FCA5A5;
 }
 
 /* Dark mode */
@@ -24,11 +29,16 @@
   --ios-bg: #000000;
   --ios-card: #1C1C1E;
   --ios-text: #FFFFFF;
-  --ios-text-secondary: #8E8E93;
+  --ios-text-secondary: #AEAEB2;
   --ios-separator: #38383A;
   --ios-grouped-bg: #1C1C1E;
   --ios-shadow: rgba(0, 0, 0, 0.3);
   --ios-shadow-lg: rgba(0, 0, 0, 0.5);
+
+  --heatmap-high: #22C55E;
+  --heatmap-mid: #4ADE80;
+  --heatmap-low: #86EFAC;
+  --heatmap-negative: #FCA5A5;
 }
 
 * {
@@ -47,6 +57,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Theme crossfade on all themed elements */
+.bg-ios-card, .bg-ios-bg, [class*="bg-ios-"] {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 /* iOS-style safe areas */
@@ -74,6 +90,23 @@ body {
 .ios-press:active {
   transform: scale(0.97);
   opacity: 0.8;
+}
+
+/* Focus visible styles for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--ios-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--ios-blue);
+  outline-offset: 2px;
+}
+
+/* Remove outline for mouse/touch users */
+*:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Range slider iOS style */
@@ -110,11 +143,6 @@ input[type="range"]::-webkit-slider-thumb {
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
 }
 
 @keyframes staggerIn {
@@ -170,10 +198,14 @@ input[type="range"]::-webkit-slider-thumb {
 /* Progress bar */
 .progress-fill { transition: width 0.5s cubic-bezier(0.32, 0.72, 0, 1); }
 
-/* Habit chip */
-.habit-chip { transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1); }
-.habit-chip:hover { transform: translateY(-2px); }
-.habit-chip.active { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
-
 /* Current time indicator */
 .time-indicator { animation: timePulse 2s ease-in-out infinite; }
+
+/* Accessibility: respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

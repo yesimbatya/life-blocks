@@ -36,7 +36,7 @@ export const WeeklyChart = memo(function WeeklyChart({ data }: WeeklyChartProps)
                   className="w-full rounded-t-md transition-all duration-500"
                   style={{
                     height: `${Math.max(heightPercent, 4)}%`,
-                    background: `linear-gradient(180deg, #34C759 0%, #30D158 100%)`,
+                    background: `linear-gradient(180deg, var(--ios-green, #34C759) 0%, #30D158 100%)`,
                     animationDelay: `${i * 80}ms`,
                   }}
                 />
@@ -46,7 +46,7 @@ export const WeeklyChart = memo(function WeeklyChart({ data }: WeeklyChartProps)
                     className="w-full rounded-b-md transition-all duration-500"
                     style={{
                       height: `${Math.max(heightPercent, 4)}%`,
-                      background: `linear-gradient(180deg, #FF3B30 0%, #FF453A 100%)`,
+                      background: `linear-gradient(180deg, var(--ios-red, #FF3B30) 0%, #FF453A 100%)`,
                       animationDelay: `${i * 80}ms`,
                     }}
                   />

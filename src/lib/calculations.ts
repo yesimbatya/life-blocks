@@ -7,7 +7,7 @@ import { DEFAULT_HABITS, Allocations, Habit, TOTAL_BLOCKS, BlockAssignments } fr
  */
 export function calculateMultiplier(streak: number): number {
   if (streak < 1) return 1
-  return Math.pow(1 + streak * 0.01, streak / 7)
+  return Math.min(Math.pow(1 + streak * 0.01, streak / 7), 10)
 }
 
 /**

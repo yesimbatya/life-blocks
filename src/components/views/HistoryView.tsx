@@ -48,9 +48,7 @@ export function HistoryView({ history, streak, allHabits = DEFAULT_HABITS }: His
   const isEmpty = history.length === 0
 
   return (
-    <div className="pb-24">
-      <div className="h-12" />
-
+    <div className="pb-24 pt-12">
       {/* Header */}
       <div className="px-5 mb-6">
         <h1 className="text-[34px] font-bold text-ios-text tracking-tight mb-1">History</h1>
@@ -134,11 +132,11 @@ export function HistoryView({ history, streak, allHabits = DEFAULT_HABITS }: His
 
                   let bgColor = 'var(--ios-separator)'
                   if (hasData) {
-                    if (ret > 200) bgColor = '#22C55E'
-                    else if (ret > 100) bgColor = '#4ADE80'
-                    else if (ret > 0) bgColor = '#86EFAC'
+                    if (ret > 200) bgColor = 'var(--heatmap-high)'
+                    else if (ret > 100) bgColor = 'var(--heatmap-mid)'
+                    else if (ret > 0) bgColor = 'var(--heatmap-low)'
                     else if (ret === 0) bgColor = 'var(--ios-separator)'
-                    else bgColor = '#FCA5A5'
+                    else bgColor = 'var(--heatmap-negative)'
                   }
 
                   return (
@@ -163,11 +161,11 @@ export function HistoryView({ history, streak, allHabits = DEFAULT_HABITS }: His
                   <span className="text-[10px] text-ios-text-secondary">No data</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-2.5 h-2.5 rounded-sm bg-[#86EFAC]" />
+                  <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'var(--heatmap-low)' }} />
                   <span className="text-[10px] text-ios-text-secondary">Low</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-2.5 h-2.5 rounded-sm bg-[#22C55E]" />
+                  <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'var(--heatmap-high)' }} />
                   <span className="text-[10px] text-ios-text-secondary">High</span>
                 </div>
               </div>

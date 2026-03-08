@@ -99,6 +99,11 @@ class BlockStore: ObservableObject {
         save()
     }
 
+    func cleanupHabitBlocks(habitId: String) {
+        blocks = blocks.map { $0 == habitId ? nil : $0 }
+        save()
+    }
+
     // MARK: - Persistence
 
     private func save() {

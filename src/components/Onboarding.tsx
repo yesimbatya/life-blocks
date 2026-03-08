@@ -90,7 +90,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
         <button
           onClick={handleNext}
-          className="w-full bg-ios-blue text-white text-[17px] font-semibold py-4 rounded-ios-lg ios-press shadow-lg"
+          className="w-full bg-ios-blue text-white text-[17px] font-semibold py-4 rounded-ios-lg ios-press shadow-ios-lg"
         >
           {isLast ? 'Get Started' : 'Continue'}
         </button>

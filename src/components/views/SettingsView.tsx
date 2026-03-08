@@ -105,9 +105,7 @@ export function SettingsView({
   }, [editingHabit, onEditCustomHabit, onAddCustomHabit])
 
   return (
-    <div className="pb-24">
-      <div className="h-12" />
-
+    <div className="pb-24 pt-12">
       {/* Header */}
       <div className="px-5 mb-6">
         <h1 className="text-[34px] font-bold text-ios-text tracking-tight">Settings</h1>
