@@ -3,24 +3,44 @@ import Combine
 
 private let appGroupID = "group.com.lifeblocks.shared"
 private let storageKey = "life-blocks-data"
+private let maxHistoryDays = 30
 
 struct StoredData: Codable {
     var currentDate: String
     var blocks: [String?]
     var streak: Int
+    var history: [DayData]
 
     static func empty() -> StoredData {
         StoredData(
             currentDate: todayString(),
             blocks: Array(repeating: nil, count: kTotalBlocks),
-            streak: 1
+            streak: 1,
+            history: []
         )
+    }
+
+    init(currentDate: String, blocks: [String?], streak: Int, history: [DayData]) {
+        self.currentDate = currentDate
+        self.blocks = blocks
+        self.streak = streak
+        self.history = history
+    }
+
+    // Handle migration from old format without history
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        currentDate = try container.decode(String.self, forKey: .currentDate)
+        blocks = try container.decode([String?].self, forKey: .blocks)
+        streak = try container.decode(Int.self, forKey: .streak)
+        history = (try? container.decode([DayData].self, forKey: .history)) ?? []
     }
 }
 
 class BlockStore: ObservableObject {
     @Published var blocks: [String?]
     @Published var streak: Int
+    @Published var history: [DayData]
     private var currentDate: String
 
     var allocations: Allocations {
@@ -39,6 +59,7 @@ class BlockStore: ObservableObject {
         let data = Self.loadData()
         self.blocks = data.blocks
         self.streak = data.streak
+        self.history = data.history
         self.currentDate = data.currentDate
     }
 
@@ -81,7 +102,7 @@ class BlockStore: ObservableObject {
     // MARK: - Persistence
 
     private func save() {
-        let data = StoredData(currentDate: currentDate, blocks: blocks, streak: streak)
+        let data = StoredData(currentDate: currentDate, blocks: blocks, streak: streak, history: history)
         guard let encoded = try? JSONEncoder().encode(data) else { return }
         Self.defaults.set(encoded, forKey: storageKey)
     }
@@ -98,11 +119,29 @@ class BlockStore: ObservableObject {
 
         let today = todayString()
         if stored.currentDate != today {
+            // Save yesterday's data to history before resetting
+            let allocations = blocksToAllocations(stored.blocks)
+            let yesterdayReturn = calculateTotalReturn(allocations: allocations, streak: stored.streak)
+
+            let yesterdayData = DayData(
+                date: stored.currentDate,
+                blocks: stored.blocks,
+                streak: stored.streak,
+                totalReturn: yesterdayReturn
+            )
+
             let wasYesterday = isYesterday(stored.currentDate)
+            var newHistory = stored.history
+            newHistory.append(yesterdayData)
+            if newHistory.count > maxHistoryDays {
+                newHistory = Array(newHistory.suffix(maxHistoryDays))
+            }
+
             stored = StoredData(
                 currentDate: today,
                 blocks: Array(repeating: nil, count: kTotalBlocks),
-                streak: wasYesterday ? stored.streak + 1 : 1
+                streak: wasYesterday ? stored.streak + 1 : 1,
+                history: newHistory
             )
             if let encoded = try? JSONEncoder().encode(stored) {
                 defaults.set(encoded, forKey: storageKey)

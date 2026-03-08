@@ -8,8 +8,10 @@ import {
   blocksToTime,
   isValidAllocation,
   isYesterday,
+  blocksToAllocations,
+  countUsedBlocks,
 } from '../lib/calculations'
-import { HABITS, TOTAL_BLOCKS } from '../lib/habits'
+import { DEFAULT_HABITS, TOTAL_BLOCKS, Habit, CustomHabit, mergeHabits } from '../lib/habits'
 
 describe('calculateMultiplier', () => {
   it('returns 1 for streak of 0 or less', () => {
@@ -23,7 +25,6 @@ describe('calculateMultiplier', () => {
   })
 
   it('returns expected value at 7-day streak', () => {
-    // Formula: (1 + 7 * 0.01)^(7/7) = 1.07^1 = 1.07
     const multiplier = calculateMultiplier(7)
     expect(multiplier).toBeCloseTo(1.07, 5)
   })
@@ -39,7 +40,7 @@ describe('calculateMultiplier', () => {
 })
 
 describe('calculateHabitReturn', () => {
-  const sleepHabit = HABITS.find(h => h.id === 'sleep')!
+  const sleepHabit = DEFAULT_HABITS.find(h => h.id === 'sleep')!
 
   it('returns 0 for 0 or negative blocks', () => {
     expect(calculateHabitReturn(sleepHabit, 0, 1)).toBe(0)
@@ -62,7 +63,7 @@ describe('calculateTotalReturn', () => {
     expect(calculateTotalReturn({}, 1)).toBe(0)
   })
 
-  it('calculates total for multiple habits', () => {
+  it('calculates total for multiple habits with default habits', () => {
     const allocations = { sleep: 10, deepwork: 5 }
     const result = calculateTotalReturn(allocations, 1)
 
@@ -77,6 +78,32 @@ describe('calculateTotalReturn', () => {
     const allocations = { scroll: 10 }
     const result = calculateTotalReturn(allocations, 1)
     expect(result).toBeLessThan(0)
+  })
+
+  it('works with custom habits via allHabits parameter', () => {
+    const customHabit: CustomHabit = {
+      id: 'custom-1',
+      emoji: '🎸',
+      name: 'Guitar',
+      baseReturn: 5.0,
+      color: '#FF0000',
+      category: 'growth',
+      isCustom: true,
+      createdAt: '2025-01-01',
+    }
+
+    const allHabits = mergeHabits([customHabit])
+    const allocations = { 'custom-1': 10 }
+    const result = calculateTotalReturn(allocations, 1, allHabits)
+
+    const multiplier = calculateMultiplier(1)
+    expect(result).toBeCloseTo(5.0 * multiplier * 10, 5)
+  })
+
+  it('ignores allocations for habits not in allHabits', () => {
+    const allocations = { 'nonexistent': 10 }
+    const result = calculateTotalReturn(allocations, 1, DEFAULT_HABITS)
+    expect(result).toBe(0)
   })
 })
 
@@ -133,7 +160,7 @@ describe('isValidAllocation', () => {
     expect(isValidAllocation({}, 'sleep', -1)).toBe(false)
   })
 
-  it('rejects invalid habit ids', () => {
+  it('rejects invalid habit ids with default habits', () => {
     expect(isValidAllocation({}, 'invalid-habit', 10)).toBe(false)
   })
 
@@ -148,6 +175,22 @@ describe('isValidAllocation', () => {
 
   it('allows updating existing allocation', () => {
     expect(isValidAllocation({ sleep: 50 }, 'sleep', 100)).toBe(true)
+  })
+
+  it('validates against custom habits when provided', () => {
+    const customHabit: CustomHabit = {
+      id: 'guitar',
+      emoji: '🎸',
+      name: 'Guitar',
+      baseReturn: 5.0,
+      color: '#FF0000',
+      category: 'growth',
+      isCustom: true,
+      createdAt: '2025-01-01',
+    }
+    const allHabits = mergeHabits([customHabit])
+    expect(isValidAllocation({}, 'guitar', 10, allHabits)).toBe(true)
+    expect(isValidAllocation({}, 'guitar', 10, DEFAULT_HABITS)).toBe(false)
   })
 })
 
@@ -169,5 +212,57 @@ describe('isYesterday', () => {
     oldDate.setDate(oldDate.getDate() - 5)
     const oldDateStr = oldDate.toISOString().split('T')[0]
     expect(isYesterday(oldDateStr)).toBe(false)
+  })
+})
+
+describe('blocksToAllocations', () => {
+  it('returns empty object for all-null blocks', () => {
+    const blocks = new Array(100).fill(null)
+    expect(blocksToAllocations(blocks)).toEqual({})
+  })
+
+  it('counts habit occurrences correctly', () => {
+    const blocks = new Array(100).fill(null)
+    blocks[0] = 'sleep'
+    blocks[1] = 'sleep'
+    blocks[2] = 'deepwork'
+    expect(blocksToAllocations(blocks)).toEqual({ sleep: 2, deepwork: 1 })
+  })
+})
+
+describe('countUsedBlocks', () => {
+  it('returns 0 for empty blocks', () => {
+    expect(countUsedBlocks(new Array(100).fill(null))).toBe(0)
+  })
+
+  it('counts non-null entries', () => {
+    const blocks = new Array(100).fill(null)
+    blocks[0] = 'sleep'
+    blocks[5] = 'deepwork'
+    blocks[99] = 'exercise'
+    expect(countUsedBlocks(blocks)).toBe(3)
+  })
+})
+
+describe('mergeHabits', () => {
+  it('returns default habits when no custom habits', () => {
+    const merged = mergeHabits([])
+    expect(merged).toHaveLength(DEFAULT_HABITS.length)
+  })
+
+  it('appends custom habits to defaults', () => {
+    const custom: CustomHabit = {
+      id: 'test',
+      emoji: '🧪',
+      name: 'Test',
+      baseReturn: 3.0,
+      color: '#000',
+      category: 'growth',
+      isCustom: true,
+      createdAt: '2025-01-01',
+    }
+    const merged = mergeHabits([custom])
+    expect(merged).toHaveLength(DEFAULT_HABITS.length + 1)
+    expect(merged[merged.length - 1].id).toBe('test')
   })
 })

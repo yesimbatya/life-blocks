@@ -2,9 +2,10 @@ import SwiftUI
 
 struct ScoreCardView: View {
     @EnvironmentObject var store: BlockStore
+    @EnvironmentObject var settingsStore: SettingsStore
 
     private var totalReturn: Double {
-        calculateTotalReturn(allocations: store.allocations, streak: store.streak)
+        calculateTotalReturn(allocations: store.allocations, streak: store.streak, allHabits: settingsStore.allHabits)
     }
 
     var body: some View {

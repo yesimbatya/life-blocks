@@ -1,8 +1,8 @@
 'use client'
 
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react'
-import { HABITS, Allocations, Habit, BlockAssignments, createEmptyBlocks, CATEGORIES } from '@/lib/habits'
-import { blocksToTime, blocksToAllocations, countUsedBlocks } from '@/lib/calculations'
+import { DEFAULT_HABITS, Allocations, Habit, BlockAssignments, createEmptyBlocks, CATEGORIES } from '@/lib/habits'
+import { blocksToTime, blocksToAllocations, countUsedBlocks, calculateTotalReturn, calculateMultiplier } from '@/lib/calculations'
 
 interface TimeGridProps {
   isOpen: boolean
@@ -11,9 +11,10 @@ interface TimeGridProps {
   onUpdateBlocks: (blocks: BlockAssignments) => void
   selectedHabit: Habit | null
   onSelectHabit: (habit: Habit | null) => void
+  allHabits?: readonly Habit[]
+  streak?: number
 }
 
-// 100 blocks = 1000 minutes = ~16.6 hours (6am to 10:40pm)
 const START_HOUR = 6
 const TOTAL_BLOCKS_COUNT = 100
 
@@ -23,7 +24,6 @@ interface TimeSlot {
   minute: number
 }
 
-// Generate static time slot metadata (doesn't depend on allocations)
 function generateTimeSlotMeta(): TimeSlot[] {
   const slots: TimeSlot[] = []
   for (let i = 0; i < TOTAL_BLOCKS_COUNT; i++) {
@@ -39,7 +39,6 @@ function generateTimeSlotMeta(): TimeSlot[] {
 
 const TIME_SLOTS = generateTimeSlotMeta()
 
-// Group slots by hour
 const HOUR_GROUPS = (() => {
   const groups: { hour: number; label: string; ampm: string; slots: TimeSlot[] }[] = []
   let currentHour = -1
@@ -61,14 +60,29 @@ const HOUR_GROUPS = (() => {
   return groups
 })()
 
+// Get current time slot index
+function getCurrentTimeIndex(): number | null {
+  const now = new Date()
+  const currentHour = now.getHours()
+  const currentMinute = now.getMinutes()
+
+  if (currentHour < START_HOUR) return null
+  const totalMinutes = (currentHour - START_HOUR) * 60 + currentMinute
+  const index = Math.floor(totalMinutes / 10)
+  if (index >= TOTAL_BLOCKS_COUNT) return null
+  return index
+}
+
 const HabitPalette = memo(function HabitPalette({
   selectedHabit,
   onSelect,
   allocations,
+  allHabits,
 }: {
   selectedHabit: Habit | null
   onSelect: (habit: Habit | null) => void
   allocations: Allocations
+  allHabits: readonly Habit[]
 }) {
   return (
     <div className="space-y-3">
@@ -79,7 +93,7 @@ const HabitPalette = memo(function HabitPalette({
           flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 ios-press
           ${selectedHabit === null
             ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg scale-[1.02]'
-            : 'bg-white text-ios-text shadow-ios hover:shadow-ios-lg'
+            : 'bg-ios-card text-ios-text shadow-ios hover:shadow-ios-lg'
           }
         `}
       >
@@ -89,12 +103,13 @@ const HabitPalette = memo(function HabitPalette({
 
       {/* Habit categories */}
       {CATEGORIES.map(category => {
-        const categoryHabits = HABITS.filter(h => h.category === category.key)
+        const categoryHabits = allHabits.filter(h => h.category === category.key)
+        if (categoryHabits.length === 0) return null
         return (
           <div key={category.key}>
             <span className={`
               text-[10px] uppercase tracking-wider font-semibold px-1 mb-1.5 block
-              ${category.key === 'drain' ? 'text-ios-red' : 'text-ios-gray-2'}
+              ${category.key === 'drain' ? 'text-ios-red' : 'text-ios-text-secondary'}
             `}>
               {category.icon} {category.label}
             </span>
@@ -112,7 +127,7 @@ const HabitPalette = memo(function HabitPalette({
                       transition-all duration-200 ios-press
                       ${isSelected
                         ? 'text-white shadow-lg scale-[1.02]'
-                        : 'bg-white text-ios-text shadow-ios hover:shadow-ios-lg'
+                        : 'bg-ios-card text-ios-text shadow-ios hover:shadow-ios-lg'
                       }
                     `}
                     style={{
@@ -137,7 +152,7 @@ const HabitPalette = memo(function HabitPalette({
                         text-[10px] font-bold shadow-sm
                         ${isSelected
                           ? 'bg-white text-ios-text'
-                          : 'bg-ios-gray-5 text-ios-gray-1'
+                          : 'bg-ios-bg text-ios-text-secondary'
                         }
                       `}>
                         {count}
@@ -161,21 +176,25 @@ export const TimeGrid = memo(function TimeGrid({
   onUpdateBlocks,
   selectedHabit,
   onSelectHabit,
+  allHabits = DEFAULT_HABITS,
+  streak = 1,
 }: TimeGridProps) {
   const [localBlocks, setLocalBlocks] = useState<BlockAssignments>(() => [...blocks])
   const [isSelecting, setIsSelecting] = useState(false)
   const [selectionStart, setSelectionStart] = useState<number | null>(null)
   const [selectionEnd, setSelectionEnd] = useState<number | null>(null)
+  const [undoStack, setUndoStack] = useState<BlockAssignments[]>([])
   const gridRef = useRef<HTMLDivElement>(null)
 
-  // Sync with props when opened
+  const currentTimeIndex = useMemo(() => getCurrentTimeIndex(), [])
+
   useEffect(() => {
     if (isOpen) {
       setLocalBlocks([...blocks])
+      setUndoStack([])
     }
   }, [isOpen, blocks])
 
-  // Derive allocations from localBlocks for display
   const localAllocations = useMemo(
     () => blocksToAllocations(localBlocks),
     [localBlocks]
@@ -183,8 +202,8 @@ export const TimeGrid = memo(function TimeGrid({
 
   const getHabitById = useCallback((id: string | null) => {
     if (!id) return null
-    return HABITS.find(h => h.id === id) || null
-  }, [])
+    return allHabits.find(h => h.id === id) || null
+  }, [allHabits])
 
   const selectionRange = useMemo(() => {
     if (selectionStart === null) return new Set<number>()
@@ -219,7 +238,8 @@ export const TimeGrid = memo(function TimeGrid({
     const min = Math.min(selectionStart, end)
     const max = Math.max(selectionStart, end)
 
-    // Update blocks at specific positions (THE FIX!)
+    setUndoStack(prev => [...prev, [...localBlocks]])
+
     const newBlocks = [...localBlocks]
     for (let i = min; i <= max; i++) {
       newBlocks[i] = selectedHabit?.id ?? null
@@ -229,9 +249,13 @@ export const TimeGrid = memo(function TimeGrid({
     setIsSelecting(false)
     setSelectionStart(null)
     setSelectionEnd(null)
+
+    // Haptic feedback on mobile
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(10)
+    }
   }, [isSelecting, selectionStart, selectionEnd, selectedHabit, localBlocks])
 
-  // Handle touch events for mobile
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
       if (!isSelecting || !gridRef.current) return
@@ -266,6 +290,18 @@ export const TimeGrid = memo(function TimeGrid({
     }
   }, [isSelecting, applySelection, handleTouchMove])
 
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) return
+    const prev = undoStack[undoStack.length - 1]
+    setUndoStack(stack => stack.slice(0, -1))
+    setLocalBlocks(prev)
+  }, [undoStack])
+
+  const handleReset = useCallback(() => {
+    setUndoStack(prev => [...prev, [...localBlocks]])
+    setLocalBlocks(createEmptyBlocks())
+  }, [localBlocks])
+
   const handleSave = useCallback(() => {
     onUpdateBlocks(localBlocks)
     onClose()
@@ -277,6 +313,10 @@ export const TimeGrid = memo(function TimeGrid({
   }, [blocks, onClose])
 
   const usedBlocks = useMemo(() => countUsedBlocks(localBlocks), [localBlocks])
+  const totalReturn = useMemo(
+    () => calculateTotalReturn(localAllocations, streak, allHabits),
+    [localAllocations, streak, allHabits]
+  )
 
   if (!isOpen) return null
 
@@ -286,16 +326,16 @@ export const TimeGrid = memo(function TimeGrid({
       onClick={handleCancel}
     >
       <div
-        className="bg-white w-full sm:max-w-lg sm:rounded-2xl sm:mx-4 rounded-t-[24px] max-h-[94vh] flex flex-col animate-slide-up overflow-hidden shadow-2xl"
+        className="bg-ios-card w-full sm:max-w-lg sm:rounded-2xl sm:mx-4 rounded-t-[24px] max-h-[94vh] flex flex-col animate-slide-up overflow-hidden shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-2 pb-1 sm:hidden">
-          <div className="w-10 h-1 rounded-full bg-ios-gray-4" />
+          <div className="w-10 h-1 rounded-full bg-ios-separator" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 bg-white/95 backdrop-blur-xl border-b border-ios-gray-5/50">
+        <div className="flex items-center justify-between px-5 py-3 bg-ios-card/95 backdrop-blur-xl border-b border-ios-separator">
           <button
             onClick={handleCancel}
             className="text-ios-blue text-[17px] font-medium ios-press"
@@ -307,13 +347,13 @@ export const TimeGrid = memo(function TimeGrid({
             <div className="flex items-center justify-center gap-2 mt-0.5">
               <div className="flex items-center gap-1">
                 <div className={`w-1.5 h-1.5 rounded-full ${usedBlocks > 0 ? 'bg-ios-green' : 'bg-ios-gray-3'}`} />
-                <span className="text-[12px] text-ios-gray-1 font-medium tabular-nums">
+                <span className="text-[12px] text-ios-text-secondary font-medium tabular-nums">
                   {usedBlocks}/100
                 </span>
               </div>
-              <span className="text-ios-gray-4">·</span>
+              <span className="text-ios-separator">·</span>
               <span className="text-[12px] text-ios-green font-medium">
-                {blocksToTime(usedBlocks)}
+                {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(0)}%
               </span>
             </div>
           </div>
@@ -325,14 +365,33 @@ export const TimeGrid = memo(function TimeGrid({
           </button>
         </div>
 
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-5 py-2 border-b border-ios-separator bg-ios-card">
+          <button
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            className="text-ios-blue text-[14px] font-medium ios-press disabled:opacity-30"
+          >
+            Undo
+          </button>
+          <button
+            onClick={handleReset}
+            disabled={usedBlocks === 0}
+            className="text-ios-red text-[14px] font-medium ios-press disabled:opacity-30"
+          >
+            Reset
+          </button>
+        </div>
+
         {/* Habit Palette */}
-        <div className="px-5 py-4 bg-gradient-to-b from-white to-ios-gray-6/30 border-b border-ios-gray-5/50">
+        <div className="px-5 py-4 bg-ios-card border-b border-ios-separator">
           <HabitPalette
             selectedHabit={selectedHabit}
             onSelect={onSelectHabit}
             allocations={localAllocations}
+            allHabits={allHabits}
           />
-          <p className="text-[12px] text-ios-gray-1 mt-3 text-center">
+          <p className="text-[12px] text-ios-text-secondary mt-3 text-center">
             {selectedHabit
               ? <>Tap or drag to paint <span className="font-semibold">{selectedHabit.emoji} {selectedHabit.name}</span></>
               : <>Tap or drag to clear blocks</>
@@ -340,25 +399,24 @@ export const TimeGrid = memo(function TimeGrid({
           </p>
         </div>
 
-        {/* Time Grid - Vertical Timeline */}
-        <div ref={gridRef} className="flex-1 overflow-y-auto bg-ios-gray-6/50 select-none">
-          {HOUR_GROUPS.map((group, groupIdx) => (
-            <div key={group.hour} className="flex bg-white border-b border-ios-gray-5/50">
+        {/* Time Grid */}
+        <div ref={gridRef} className="flex-1 overflow-y-auto bg-ios-bg select-none">
+          {HOUR_GROUPS.map((group) => (
+            <div key={group.hour} className="flex bg-ios-card border-b border-ios-separator">
               {/* Hour Label */}
               <div className="w-14 flex-shrink-0 relative">
                 <div className="absolute -top-2 right-2 flex flex-col items-end">
                   <span className="text-[15px] font-semibold text-ios-text tabular-nums leading-none">
                     {group.label}
                   </span>
-                  <span className="text-[9px] text-ios-gray-2 font-medium">
+                  <span className="text-[9px] text-ios-text-secondary font-medium">
                     {group.ampm}
                   </span>
                 </div>
-                {/* Vertical line */}
-                <div className="absolute top-0 right-0 w-px h-full bg-ios-gray-4/50" />
+                <div className="absolute top-0 right-0 w-px h-full bg-ios-separator" />
               </div>
 
-              {/* 10-minute blocks for this hour */}
+              {/* 10-minute blocks */}
               <div className="flex-1 grid grid-cols-6">
                 {group.slots.map((slot, slotIdx) => {
                   const habitId = localBlocks[slot.index]
@@ -366,6 +424,7 @@ export const TimeGrid = memo(function TimeGrid({
                   const isInSelection = selectionRange.has(slot.index)
                   const showPreview = isInSelection && selectedHabit && !habitId
                   const isHalfHour = slot.minute === 30
+                  const isCurrentTime = currentTimeIndex === slot.index
 
                   return (
                     <div
@@ -374,8 +433,8 @@ export const TimeGrid = memo(function TimeGrid({
                       className={`
                         h-16 flex items-center justify-center cursor-pointer
                         transition-all duration-100 relative
-                        ${slotIdx < 5 ? 'border-r border-ios-gray-5/30' : ''}
-                        ${isHalfHour ? 'border-l-2 border-l-ios-gray-4/30' : ''}
+                        ${slotIdx < 5 ? 'border-r border-ios-separator/30' : ''}
+                        ${isHalfHour ? 'border-l-2 border-l-ios-separator/30' : ''}
                         ${isInSelection ? 'z-10' : ''}
                         ${!habit && !isInSelection ? 'hover:bg-ios-blue/5 active:bg-ios-blue/10' : ''}
                       `}
@@ -390,6 +449,11 @@ export const TimeGrid = memo(function TimeGrid({
                       onMouseEnter={() => handlePointerEnter(slot.index)}
                       onTouchStart={() => handlePointerDown(slot.index)}
                     >
+                      {/* Current time indicator */}
+                      {isCurrentTime && (
+                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-ios-red time-indicator z-20" />
+                      )}
+
                       {/* Selection ring */}
                       {isInSelection && (
                         <div className="absolute inset-0 ring-2 ring-inset ring-ios-blue rounded-sm pointer-events-none" />
@@ -407,7 +471,7 @@ export const TimeGrid = memo(function TimeGrid({
 
                       {/* Time label on edges */}
                       {(slot.minute === 0 || slot.minute === 30) && !habit && !showPreview && (
-                        <span className="absolute bottom-1 left-1 text-[9px] text-ios-gray-3 font-medium">
+                        <span className="absolute bottom-1 left-1 text-[9px] text-ios-text-secondary font-medium">
                           :{slot.minute.toString().padStart(2, '0')}
                         </span>
                       )}
@@ -420,30 +484,30 @@ export const TimeGrid = memo(function TimeGrid({
         </div>
 
         {/* Summary Footer */}
-        <div className="px-5 py-4 bg-white border-t border-ios-gray-5/50">
+        <div className="px-5 py-4 bg-ios-card border-t border-ios-separator">
           {usedBlocks > 0 ? (
             <>
               <div className="flex flex-wrap gap-2 justify-center mb-3">
-                {HABITS.filter(h => localAllocations[h.id] > 0).map(habit => (
+                {allHabits.filter(h => localAllocations[h.id] > 0).map(habit => (
                   <div
                     key={habit.id}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-ios-gray-6"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-ios-bg"
                   >
                     <div
                       className="w-2.5 h-2.5 rounded-full shadow-inner"
                       style={{ background: `linear-gradient(135deg, ${habit.color} 0%, ${habit.color}CC 100%)` }}
                     />
                     <span className="text-[12px] font-medium text-ios-text">{habit.emoji}</span>
-                    <span className="text-[12px] text-ios-gray-1 tabular-nums">
+                    <span className="text-[12px] text-ios-text-secondary tabular-nums">
                       {blocksToTime(localAllocations[habit.id])}
                     </span>
                   </div>
                 ))}
               </div>
               {/* Progress bar */}
-              <div className="h-1.5 bg-ios-gray-5 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-ios-separator rounded-full overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-300"
+                  className={`h-full rounded-full transition-all duration-300 ${usedBlocks >= 100 ? 'animate-celebrate' : ''}`}
                   style={{
                     width: `${usedBlocks}%`,
                     background: 'linear-gradient(90deg, #34C759 0%, #007AFF 50%, #5E5CE6 100%)',
@@ -452,7 +516,7 @@ export const TimeGrid = memo(function TimeGrid({
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center gap-2 py-2 text-ios-gray-2">
+            <div className="flex items-center justify-center gap-2 py-2 text-ios-text-secondary">
               <span className="text-xl">🎯</span>
               <span className="text-[13px]">Select a habit and paint your day</span>
             </div>

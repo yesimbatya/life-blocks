@@ -3,6 +3,7 @@ import WidgetKit
 
 struct HomeView: View {
     @EnvironmentObject var store: BlockStore
+    @EnvironmentObject var settingsStore: SettingsStore
     @EnvironmentObject var healthManager: HealthManager
     @State private var showBlockGrid = false
 

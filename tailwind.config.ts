@@ -6,6 +6,7 @@ const config: Config = {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -25,10 +26,12 @@ const config: Config = {
           5: '#E5E5EA',
           6: '#F2F2F7',
         },
-        'ios-bg': '#F2F2F7',
-        'ios-card': '#FFFFFF',
-        'ios-text': '#1C1C1E',
-        'ios-text-secondary': '#8E8E93',
+        'ios-bg': 'var(--ios-bg)',
+        'ios-card': 'var(--ios-card)',
+        'ios-text': 'var(--ios-text)',
+        'ios-text-secondary': 'var(--ios-text-secondary)',
+        'ios-separator': 'var(--ios-separator)',
+        'ios-grouped-bg': 'var(--ios-grouped-bg)',
       },
       fontFamily: {
         sans: [
@@ -47,8 +50,8 @@ const config: Config = {
         'ios-xl': '20px',
       },
       boxShadow: {
-        'ios': '0 2px 12px rgba(0, 0, 0, 0.04)',
-        'ios-lg': '0 4px 24px rgba(0, 0, 0, 0.08)',
+        'ios': '0 2px 12px var(--ios-shadow)',
+        'ios-lg': '0 4px 24px var(--ios-shadow-lg)',
       },
     },
   },

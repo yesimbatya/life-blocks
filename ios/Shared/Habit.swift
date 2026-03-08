@@ -31,17 +31,36 @@ struct Habit: Identifiable, Codable, Hashable {
     let baseReturn: Double
     let hexColor: String
     let category: HabitCategory
+    var isCustom: Bool = false
+    var createdAt: String?
 
     var color: Color {
         Color(hex: hexColor)
     }
 }
 
+// MARK: - Historical day data
+
+struct DayData: Codable {
+    let date: String
+    let blocks: [String?]
+    let streak: Int
+    let totalReturn: Double
+}
+
+// MARK: - User Settings
+
+struct UserSettings: Codable {
+    var theme: String = "system"
+    var customHabits: [Habit] = []
+    var onboardingComplete: Bool = false
+}
+
 // MARK: - Constants
 
 let kTotalBlocks = 100
 
-let kHabits: [Habit] = [
+let kDefaultHabits: [Habit] = [
     Habit(id: "sleep", emoji: "😴", name: "Sleep", baseReturn: 8.2, hexColor: "#5E5CE6", category: .essential),
     Habit(id: "deepwork", emoji: "🎯", name: "Deep Work", baseReturn: 7.5, hexColor: "#32ADE6", category: .growth),
     Habit(id: "exercise", emoji: "🏃", name: "Exercise", baseReturn: 6.8, hexColor: "#FF9F0A", category: .essential),
@@ -54,14 +73,30 @@ let kHabits: [Habit] = [
     Habit(id: "netflix", emoji: "📺", name: "Binge", baseReturn: -1.5, hexColor: "#636366", category: .drain),
 ]
 
+/// Backward-compatible reference
+let kHabits = kDefaultHabits
+
+let kHabitColors: [String] = [
+    "#007AFF", "#5E5CE6", "#32ADE6", "#64D2FF",
+    "#34C759", "#30D158", "#FF9F0A", "#FF9500",
+    "#FF3B30", "#FF375F", "#FF6482", "#BF5AF2",
+    "#AC8E68", "#8E8E93", "#636366",
+]
+
 // MARK: - Helpers
 
-func habitById(_ id: String) -> Habit? {
-    kHabits.first { $0.id == id }
+func habitById(_ id: String, from habits: [Habit]? = nil) -> Habit? {
+    let list = habits ?? kDefaultHabits
+    return list.first { $0.id == id }
 }
 
-func habitsByCategory(_ category: HabitCategory) -> [Habit] {
-    kHabits.filter { $0.category == category }
+func habitsByCategory(_ category: HabitCategory, from habits: [Habit]? = nil) -> [Habit] {
+    let list = habits ?? kDefaultHabits
+    return list.filter { $0.category == category }
+}
+
+func mergeHabits(custom: [Habit]) -> [Habit] {
+    kDefaultHabits + custom
 }
 
 // MARK: - Color Extension

@@ -2,10 +2,13 @@ import SwiftUI
 
 struct BlockGridView: View {
     @EnvironmentObject var store: BlockStore
+    @EnvironmentObject var settingsStore: SettingsStore
     @Environment(\.dismiss) private var dismiss
     @State private var selectedHabit: Habit? = nil
+    @State private var isDragging = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 10)
+    private let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
 
     var body: some View {
         NavigationStack {
@@ -22,15 +25,44 @@ struct BlockGridView: View {
                         }
                         .font(.subheadline)
 
-                        // 10x10 grid
-                        LazyVGrid(columns: columns, spacing: 3) {
-                            ForEach(0..<kTotalBlocks, id: \.self) { index in
-                                BlockCell(habitId: store.blocks[index], selectedHabit: selectedHabit)
+                        // 10x10 grid with drag support
+                        GeometryReader { geometry in
+                            let gridWidth = geometry.size.width
+                            let cellSize = (gridWidth - 3 * 9) / 10 // 10 columns, 9 gaps of 3pt
+
+                            LazyVGrid(columns: columns, spacing: 3) {
+                                ForEach(0..<kTotalBlocks, id: \.self) { index in
+                                    BlockCell(
+                                        habitId: store.blocks[index],
+                                        selectedHabit: selectedHabit,
+                                        allHabits: settingsStore.allHabits
+                                    )
                                     .onTapGesture {
                                         handleTap(at: index)
+                                        feedbackGenerator.impactOccurred()
                                     }
+                                }
                             }
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        isDragging = true
+                                        let location = value.location
+                                        if let index = indexFromPoint(location, cellSize: cellSize, gridWidth: gridWidth) {
+                                            let currentValue = store.blocks[index]
+                                            let newValue = selectedHabit?.id
+                                            if currentValue != newValue {
+                                                handleTap(at: index)
+                                                feedbackGenerator.impactOccurred()
+                                            }
+                                        }
+                                    }
+                                    .onEnded { _ in
+                                        isDragging = false
+                                    }
+                            )
                         }
+                        .aspectRatio(1, contentMode: .fit)
 
                         HStack {
                             Text("12 AM")
@@ -43,7 +75,7 @@ struct BlockGridView: View {
                         .foregroundStyle(.tertiary)
 
                         // Mini legend
-                        MiniLegend()
+                        MiniLegend(habits: settingsStore.allHabits)
                     }
                     .padding()
                 }
@@ -56,6 +88,7 @@ struct BlockGridView: View {
                         // Eraser
                         Button {
                             selectedHabit = nil
+                            feedbackGenerator.impactOccurred()
                         } label: {
                             VStack(spacing: 4) {
                                 Image(systemName: "eraser.fill")
@@ -69,9 +102,10 @@ struct BlockGridView: View {
                         }
                         .buttonStyle(.plain)
 
-                        ForEach(kHabits) { habit in
+                        ForEach(settingsStore.allHabits, id: \.id) { habit in
                             Button {
                                 selectedHabit = habit
+                                feedbackGenerator.impactOccurred()
                             } label: {
                                 VStack(spacing: 4) {
                                     Text(habit.emoji)
@@ -102,6 +136,7 @@ struct BlockGridView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Reset") {
                         store.resetToday()
+                        feedbackGenerator.impactOccurred()
                     }
                     .foregroundStyle(.red)
                 }
@@ -122,14 +157,29 @@ struct BlockGridView: View {
             store.setBlock(at: index, habitId: nil)
         }
     }
+
+    private func indexFromPoint(_ point: CGPoint, cellSize: CGFloat, gridWidth: CGFloat) -> Int? {
+        let spacing: CGFloat = 3
+        let step = cellSize + spacing
+
+        let col = Int(point.x / step)
+        let row = Int(point.y / step)
+
+        guard col >= 0, col < 10, row >= 0, row < 10 else { return nil }
+
+        let index = row * 10 + col
+        guard index >= 0, index < kTotalBlocks else { return nil }
+        return index
+    }
 }
 
 struct BlockCell: View {
     let habitId: String?
     let selectedHabit: Habit?
+    var allHabits: [Habit] = kDefaultHabits
 
     var body: some View {
-        let habit = habitId.flatMap { habitById($0) }
+        let habit = habitId.flatMap { habitById($0, from: allHabits) }
 
         RoundedRectangle(cornerRadius: 3)
             .fill(habit?.color ?? Color(.systemGray5))
@@ -144,9 +194,11 @@ struct BlockCell: View {
 }
 
 struct MiniLegend: View {
+    var habits: [Habit] = kDefaultHabits
+
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
-            ForEach(kHabits) { habit in
+            ForEach(habits, id: \.id) { habit in
                 HStack(spacing: 6) {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(habit.color)

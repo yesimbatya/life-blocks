@@ -1,31 +1,38 @@
 /** Habit categories for grouping and display */
 export type HabitCategory = 'essential' | 'growth' | 'drain'
 
-/** Habit ID type - matches the id field in HABITS array */
-export type HabitId =
-  | 'sleep'
-  | 'deepwork'
-  | 'exercise'
-  | 'reading'
-  | 'meditate'
-  | 'japanese'
-  | 'build'
-  | 'connect'
-  | 'scroll'
-  | 'netflix'
-
 /** Habit definition */
 export interface Habit {
-  readonly id: HabitId
+  readonly id: string
   readonly emoji: string
   readonly name: string
   readonly baseReturn: number
   readonly color: string
   readonly category: HabitCategory
+  readonly isCustom?: boolean
+}
+
+/** Custom habit created by the user */
+export interface CustomHabit extends Habit {
+  readonly isCustom: true
+  readonly createdAt: string
+}
+
+/** User settings persisted separately from daily data */
+export interface UserSettings {
+  theme: 'light' | 'dark' | 'system'
+  customHabits: CustomHabit[]
+  onboardingComplete: boolean
+}
+
+export const DEFAULT_SETTINGS: UserSettings = {
+  theme: 'system',
+  customHabits: [],
+  onboardingComplete: false,
 }
 
 /** Predefined habits with their return rates */
-export const HABITS: readonly Habit[] = [
+export const DEFAULT_HABITS: readonly Habit[] = [
   { id: 'sleep', emoji: '😴', name: 'Sleep', baseReturn: 8.2, color: '#5E5CE6', category: 'essential' },
   { id: 'deepwork', emoji: '🎯', name: 'Deep Work', baseReturn: 7.5, color: '#32ADE6', category: 'growth' },
   { id: 'exercise', emoji: '🏃', name: 'Exercise', baseReturn: 6.8, color: '#FF9F0A', category: 'essential' },
@@ -37,6 +44,9 @@ export const HABITS: readonly Habit[] = [
   { id: 'scroll', emoji: '📱', name: 'Scrolling', baseReturn: -2.1, color: '#8E8E93', category: 'drain' },
   { id: 'netflix', emoji: '📺', name: 'Binge', baseReturn: -1.5, color: '#636366', category: 'drain' },
 ] as const
+
+/** @deprecated Use DEFAULT_HABITS instead. Kept for backward compatibility. */
+export const HABITS = DEFAULT_HABITS
 
 /** Total blocks available per day (100 x 10-min blocks = 1000 waking minutes) */
 export const TOTAL_BLOCKS = 100 as const
@@ -62,15 +72,28 @@ export interface DayData {
   readonly totalReturn: number
 }
 
-/** Helper to get habit by ID with type safety */
-export function getHabitById(id: string): Habit | undefined {
-  return HABITS.find(h => h.id === id)
+/** Helper to get habit by ID */
+export function getHabitById(id: string, allHabits: readonly Habit[] = DEFAULT_HABITS): Habit | undefined {
+  return allHabits.find(h => h.id === id)
 }
 
 /** Get all habits in a category */
-export function getHabitsByCategory(category: HabitCategory): readonly Habit[] {
-  return HABITS.filter(h => h.category === category)
+export function getHabitsByCategory(category: HabitCategory, allHabits: readonly Habit[] = DEFAULT_HABITS): readonly Habit[] {
+  return allHabits.filter(h => h.category === category)
 }
+
+/** Merge default habits with custom habits */
+export function mergeHabits(customHabits: CustomHabit[]): Habit[] {
+  return [...DEFAULT_HABITS, ...customHabits]
+}
+
+/** Available colors for custom habits */
+export const HABIT_COLORS = [
+  '#007AFF', '#5E5CE6', '#32ADE6', '#64D2FF',
+  '#34C759', '#30D158', '#FF9F0A', '#FF9500',
+  '#FF3B30', '#FF375F', '#FF6482', '#BF5AF2',
+  '#AC8E68', '#8E8E93', '#636366',
+] as const
 
 /** Category metadata for display */
 export const CATEGORIES: readonly { key: HabitCategory; label: string; icon: string }[] = [

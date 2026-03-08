@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PortfolioView: View {
     @EnvironmentObject var store: BlockStore
+    @EnvironmentObject var settingsStore: SettingsStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -9,14 +10,14 @@ struct PortfolioView: View {
                 .font(.headline)
 
             ForEach(HabitCategory.allCases, id: \.self) { category in
-                let categoryHabits = habitsByCategory(category)
+                let categoryHabits = habitsByCategory(category, from: settingsStore.allHabits)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("\(category.icon) \(category.label)")
                         .font(.subheadline.bold())
                         .foregroundStyle(.secondary)
 
-                    ForEach(categoryHabits) { habit in
+                    ForEach(categoryHabits, id: \.id) { habit in
                         HabitRow(habit: habit, blocks: store.allocations[habit.id] ?? 0)
                     }
                 }

@@ -1,4 +1,4 @@
-import { HABITS, Allocations, Habit, TOTAL_BLOCKS, BlockAssignments } from './habits'
+import { DEFAULT_HABITS, Allocations, Habit, TOTAL_BLOCKS, BlockAssignments } from './habits'
 
 /**
  * Calculate streak multiplier based on consecutive days
@@ -27,10 +27,11 @@ export function calculateHabitReturn(
  */
 export function calculateTotalReturn(
   allocations: Allocations,
-  streak: number
+  streak: number,
+  allHabits: readonly Habit[] = DEFAULT_HABITS
 ): number {
   const multiplier = calculateMultiplier(streak)
-  return HABITS.reduce((sum, habit) => {
+  return allHabits.reduce((sum, habit) => {
     const blocks = allocations[habit.id] || 0
     return sum + calculateHabitReturn(habit, blocks, multiplier)
   }, 0)
@@ -70,11 +71,12 @@ export function blocksToTime(blocks: number): string {
 export function isValidAllocation(
   currentAllocations: Allocations,
   habitId: string,
-  newValue: number
+  newValue: number,
+  allHabits: readonly Habit[] = DEFAULT_HABITS
 ): boolean {
   if (newValue < 0) return false
 
-  const habitExists = HABITS.some(h => h.id === habitId)
+  const habitExists = allHabits.some(h => h.id === habitId)
   if (!habitExists) return false
 
   const currentUsed = calculateUsedBlocks(currentAllocations)

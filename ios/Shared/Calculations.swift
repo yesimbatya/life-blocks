@@ -13,9 +13,10 @@ func calculateHabitReturn(habit: Habit, blocks: Int, multiplier: Double) -> Doub
     return habit.baseReturn * multiplier * Double(blocks)
 }
 
-func calculateTotalReturn(allocations: Allocations, streak: Int) -> Double {
+func calculateTotalReturn(allocations: Allocations, streak: Int, allHabits: [Habit]? = nil) -> Double {
+    let habits = allHabits ?? kDefaultHabits
     let multiplier = calculateMultiplier(streak: streak)
-    return kHabits.reduce(0.0) { sum, habit in
+    return habits.reduce(0.0) { sum, habit in
         let blocks = allocations[habit.id] ?? 0
         return sum + calculateHabitReturn(habit: habit, blocks: blocks, multiplier: multiplier)
     }

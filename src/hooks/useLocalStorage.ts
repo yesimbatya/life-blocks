@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { DayData, TOTAL_BLOCKS, BlockAssignments, createEmptyBlocks } from '@/lib/habits'
+import { DayData, TOTAL_BLOCKS, BlockAssignments, createEmptyBlocks, CustomHabit, UserSettings, DEFAULT_SETTINGS, DEFAULT_HABITS, mergeHabits } from '@/lib/habits'
 import { getToday, isYesterday, blocksToAllocations, calculateTotalReturn } from '@/lib/calculations'
 
 const STORAGE_KEY = 'life-blocks-data'
+const SETTINGS_KEY = 'life-blocks-settings'
 const MAX_HISTORY_DAYS = 30
 
 interface StoredData {
@@ -58,7 +59,6 @@ function parseStoredData(stored: string | null): StoredData | null {
       parsed.blocks = sanitizedBlocks
     } else if (typeof parsed.allocations === 'object') {
       // Old format - migrate to new blocks format
-      // Note: This will place habits sequentially (best effort migration)
       const blocks = createEmptyBlocks()
       let idx = 0
       for (const [habitId, count] of Object.entries(parsed.allocations)) {
@@ -83,12 +83,35 @@ function parseStoredData(stored: string | null): StoredData | null {
 }
 
 /**
+ * Parse settings from localStorage
+ */
+function parseSettings(stored: string | null): UserSettings {
+  if (!stored) return { ...DEFAULT_SETTINGS }
+
+  try {
+    const parsed = JSON.parse(stored)
+    return {
+      theme: ['light', 'dark', 'system'].includes(parsed.theme) ? parsed.theme : 'system',
+      customHabits: Array.isArray(parsed.customHabits) ? parsed.customHabits.filter(
+        (h: unknown) =>
+          typeof h === 'object' && h !== null &&
+          typeof (h as CustomHabit).id === 'string' &&
+          typeof (h as CustomHabit).name === 'string' &&
+          typeof (h as CustomHabit).emoji === 'string'
+      ) : [],
+      onboardingComplete: typeof parsed.onboardingComplete === 'boolean' ? parsed.onboardingComplete : false,
+    }
+  } catch {
+    return { ...DEFAULT_SETTINGS }
+  }
+}
+
+/**
  * Process data for a new day - save history and reset blocks
  */
-function processNewDay(parsed: StoredData, today: string): StoredData {
-  // Calculate the total return for yesterday before saving to history
+function processNewDay(parsed: StoredData, today: string, allHabits: readonly import('@/lib/habits').Habit[]): StoredData {
   const allocations = blocksToAllocations(parsed.blocks)
-  const yesterdayReturn = calculateTotalReturn(allocations, parsed.streak)
+  const yesterdayReturn = calculateTotalReturn(allocations, parsed.streak, allHabits)
 
   const yesterdayData: DayData = {
     date: parsed.currentDate,
@@ -97,7 +120,6 @@ function processNewDay(parsed: StoredData, today: string): StoredData {
     totalReturn: yesterdayReturn,
   }
 
-  // Check if streak continues (was yesterday)
   const isConsecutive = isYesterday(parsed.currentDate)
 
   return {
@@ -110,7 +132,14 @@ function processNewDay(parsed: StoredData, today: string): StoredData {
 
 export function useLocalStorage() {
   const [data, setData] = useState<StoredData>(getDefaultData)
+  const [settings, setSettings] = useState<UserSettings>({ ...DEFAULT_SETTINGS })
   const [isLoaded, setIsLoaded] = useState(false)
+
+  // Merge default habits with custom habits
+  const allHabits = useMemo(
+    () => mergeHabits(settings.customHabits),
+    [settings.customHabits]
+  )
 
   // Derive allocations from blocks for components that need counts
   const allocations = useMemo(
@@ -121,40 +150,53 @@ export function useLocalStorage() {
   // Load from localStorage on mount
   useEffect(() => {
     try {
+      const storedSettings = localStorage.getItem(SETTINGS_KEY)
+      const loadedSettings = parseSettings(storedSettings)
+      setSettings(loadedSettings)
+
       const stored = localStorage.getItem(STORAGE_KEY)
       const parsed = parseStoredData(stored)
 
       if (parsed) {
         const today = getToday()
+        const habits = mergeHabits(loadedSettings.customHabits)
 
         if (parsed.currentDate !== today) {
-          setData(processNewDay(parsed, today))
+          setData(processNewDay(parsed, today, habits))
         } else {
           setData(parsed)
         }
       }
     } catch (e) {
-      // localStorage might not be available (SSR, private browsing, etc.)
       console.error('localStorage access failed:', e)
     }
 
     setIsLoaded(true)
   }, [])
 
-  // Save to localStorage whenever data changes
+  // Save data to localStorage whenever it changes
   useEffect(() => {
     if (!isLoaded) return
 
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch (e) {
-      // localStorage might be full or unavailable
       console.error('Failed to save to localStorage:', e)
     }
   }, [data, isLoaded])
 
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    if (!isLoaded) return
+
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+    } catch (e) {
+      console.error('Failed to save settings:', e)
+    }
+  }, [settings, isLoaded])
+
   const updateBlocks = useCallback((blocks: BlockAssignments) => {
-    // Validate blocks array length
     if (blocks.length !== TOTAL_BLOCKS) {
       console.warn('Invalid blocks array length, ignoring update')
       return
@@ -167,13 +209,51 @@ export function useLocalStorage() {
     setData(prev => ({ ...prev, blocks: createEmptyBlocks() }))
   }, [])
 
+  const updateSettings = useCallback((updates: Partial<UserSettings>) => {
+    setSettings(prev => ({ ...prev, ...updates }))
+  }, [])
+
+  const addCustomHabit = useCallback((habit: CustomHabit) => {
+    setSettings(prev => ({
+      ...prev,
+      customHabits: [...prev.customHabits, habit],
+    }))
+  }, [])
+
+  const removeCustomHabit = useCallback((habitId: string) => {
+    setSettings(prev => ({
+      ...prev,
+      customHabits: prev.customHabits.filter(h => h.id !== habitId),
+    }))
+    // Also remove any blocks assigned to this habit
+    setData(prev => ({
+      ...prev,
+      blocks: prev.blocks.map(b => b === habitId ? null : b),
+    }))
+  }, [])
+
+  const editCustomHabit = useCallback((habitId: string, updates: Partial<Omit<CustomHabit, 'id' | 'isCustom' | 'createdAt'>>) => {
+    setSettings(prev => ({
+      ...prev,
+      customHabits: prev.customHabits.map(h =>
+        h.id === habitId ? { ...h, ...updates } : h
+      ),
+    }))
+  }, [])
+
   return {
     blocks: data.blocks,
-    allocations, // Derived from blocks for backward compatibility
+    allocations,
     streak: data.streak,
     history: data.history,
     isLoaded,
     updateBlocks,
     resetToday,
+    settings,
+    updateSettings,
+    allHabits,
+    addCustomHabit,
+    removeCustomHabit,
+    editCustomHabit,
   }
 }
